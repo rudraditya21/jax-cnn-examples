@@ -7,13 +7,13 @@ from torchvision import datasets, transforms
 
 from .registry import DatasetRegistry
 
-CIFAR10_MEAN = (0.4914, 0.4822, 0.4465)
-CIFAR10_STD = (0.2023, 0.1994, 0.2010)
+CIFAR100_MEAN = (0.5071, 0.4867, 0.4408)
+CIFAR100_STD = (0.2675, 0.2565, 0.2761)
 
 
 def _build_transforms(augment: bool) -> tuple[transforms.Compose, transforms.Compose]:
     """
-    Constructs the training and evaluation transforms for CIFAR-10 dataset.
+    Constructs the training and evaluation transforms for CIFAR-100 dataset.
 
     Args:
         augment (bool): If True, data augmentation operations are applied to the training set. Evaluation transforms remain deterministic.
@@ -28,29 +28,29 @@ def _build_transforms(augment: bool) -> tuple[transforms.Compose, transforms.Com
                 transforms.RandomCrop(32, padding=4),
                 transforms.RandomHorizontalFlip(),
                 transforms.ToTensor(),
-                transforms.Normalize(CIFAR10_MEAN, CIFAR10_STD),
+                transforms.Normalize(CIFAR100_MEAN, CIFAR100_STD),
             ]
         )
     else:
         train_transform = transforms.Compose(
             [
                 transforms.ToTensor(),
-                transforms.Normalize(CIFAR10_MEAN, CIFAR10_STD),
+                transforms.Normalize(CIFAR100_MEAN, CIFAR100_STD),
             ]
         )
 
     eval_transform = transforms.Compose(
         [
             transforms.ToTensor(),
-            transforms.Normalize(CIFAR10_MEAN, CIFAR10_STD),
+            transforms.Normalize(CIFAR100_MEAN, CIFAR100_STD),
         ]
     )
 
     return train_transform, eval_transform
 
 
-@DatasetRegistry.register("cifar10")
-def load_cifar10(
+@DatasetRegistry.register("cifar100")
+def load_cifar100(
     data_dir: str = "./data",
     batch_size: int = 64,
     shuffle: bool = True,
@@ -58,9 +58,9 @@ def load_cifar10(
     augment: bool = True,
 ) -> tuple[DataLoader, DataLoader, int]:
     """
-    Loads the CIFAR-10 dataset with standardized transforms and loaders.
+    Loads the CIFAR-100 dataset with standardized transforms and loaders.
 
-    The function provides a clean, unified entry point for integrating CIFAR-10 into training pipelines. All dataset configuration parameters are exposed as function arguments to support experimentation and reproducibility.
+    The function provides a clean, unified entry point for integrating CIFAR-100 into training pipelines. All dataset configuration parameters are exposed as function arguments to support experimentation and reproducibility.
 
     Args:
         data_dir (str, optional): Directory where the dataset is stored or will be downloaded. Defaults to "./data".
@@ -74,19 +74,19 @@ def load_cifar10(
         A tuple containing:
             - The training DataLoader
             - The evaluation DataLoader
-            - The number of output classes (10 for CIFAR-10)
+            - The number of output classes (100 for CIFAR-100)
     """
     data_path = Path(data_dir)
     train_transform, eval_transform = _build_transforms(augment)
 
-    train_dataset = datasets.CIFAR10(
+    train_dataset = datasets.CIFAR100(
         root=data_path,
         train=True,
         download=True,
         transform=train_transform,
     )
 
-    eval_dataset = datasets.CIFAR10(
+    eval_dataset = datasets.CIFAR100(
         root=data_path,
         train=False,
         download=True,
@@ -112,6 +112,6 @@ def load_cifar10(
         pin_memory=pin_memory,
     )
 
-    num_classes = 10
+    num_classes = 100
 
     return train_loader, eval_loader, num_classes
