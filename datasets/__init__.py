@@ -1,4 +1,4 @@
-from . import cifar10, cifar100, emnist, fashion_mnist, kmnist, mnist
+from . import cifar10, cifar100, emnist, fashion_mnist, kmnist, mnist, qmnist
 from .registry import DatasetRegistry
 
 __all__ = [
@@ -9,4 +9,5 @@ __all__ = [
     "fashion_mnist",
     "kmnist",
     "mnist",
+    "qmnist",
 ]
