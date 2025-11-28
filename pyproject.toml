@@ -1,24 +1,50 @@
+# ===============================
+# Ruff Configuration (pyproject.toml)
+# ===============================
+# Ruff is a fast Python linter, formatter, and style enforcer.
+# This configuration sets project-wide rules for linting and formatting.
+
 [tool.ruff]
+# Maximum allowed line length
 line-length = 100
+
+# Target Python version for compatibility checks
 target-version = "py311"
+
+# Exclude certain directories and files from linting/formatting
 exclude = [
-    ".venv",
-    "venv",
-    "build",
-    "dist",
-    "migrations",
-    "__pycache__",
+    ".venv",         # Virtual environments
+    "venv",          # Alternate virtual environment folder
+    "build",         # Build artifacts
+    "dist",          # Distribution packages
+    "migrations",    # Django or Alembic migration folders
+    "__pycache__",   # Compiled Python bytecode
 ]
 
+# ===============================
+# Linting Rules
+# ===============================
 [tool.ruff.lint]
+# Categories of rules to apply:
+# E: pycodestyle errors
+# F: pyflakes errors
+# I: isort (import sorting) rules
+# B: flake8-bugbear checks
+# UP: unused imports / variables
+# SIM: simplifications and code improvements
 select = ["E", "F", "I", "B", "UP", "SIM"]
+
+# Specific rules to ignore
 ignore = [
-    "E203",
-    "E501",
+    "E203",  # Whitespace before ':' (common conflict with black/formatter)
+    "E501",  # Line length (handled separately by line-length setting)
 ]
 
+# ===============================
+# Formatting Rules
+# ===============================
 [tool.ruff.format]
-quote-style = "double"
-indent-style = "space"
-line-ending = "auto"
-docstring-code-format = true
+quote-style = "double"          # Enforce double quotes for strings
+indent-style = "space"          # Use spaces for indentation
+line-ending = "auto"            # Use system default line endings
+docstring-code-format = true    # Format code blocks inside docstrings
