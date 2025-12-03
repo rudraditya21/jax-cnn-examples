@@ -9,6 +9,9 @@ from jax.nn.initializers import glorot_uniform
 
 from .registry import ModuleRegistry
 
+# stax lacks a built-in ReLU6; define a simple variant here.
+RELU6 = stax.elementwise(lambda x: jnp.minimum(jnp.maximum(x, 0.0), 6.0))
+
 
 def _depthwise_conv(
     kernel_size: tuple[int, int] = (3, 3),
@@ -34,7 +37,8 @@ def _depthwise_conv(
             raise ValueError("DepthwiseConv expects NHWC input.")
         _, h, w, c = input_shape
         k_h, k_w = kernel_size
-        w_shape = (k_h, k_w, c, channel_multiplier)
+        # Depthwise: one input channel per group, channel_multiplier outputs per group.
+        w_shape = (k_h, k_w, 1, c * channel_multiplier)
         k_rng, _ = jax.random.split(rng)
         W = glorot_uniform()(k_rng, w_shape)
         b = jnp.zeros((c * channel_multiplier,), dtype=W.dtype)
@@ -148,7 +152,7 @@ def _inverted_residual(out_ch: int, stride: int, expand_ratio: int):
                 [
                     stax.Conv(mid_ch, (1, 1), padding="SAME"),
                     stax.BatchNorm(),
-                    stax.Relu6,
+                    RELU6,
                 ]
             )
 
@@ -156,7 +160,7 @@ def _inverted_residual(out_ch: int, stride: int, expand_ratio: int):
             [
                 _depthwise_conv(stride=(stride, stride)),
                 stax.BatchNorm(),
-                stax.Relu6,
+                RELU6,
                 stax.Conv(out_ch, (1, 1), padding="SAME"),
                 stax.BatchNorm(),
             ]
@@ -215,7 +219,7 @@ def _make_mobilenet_v2(width_mult: float, num_classes: int):
         [
             stax.Conv(_c(1280), (1, 1), padding="SAME"),
             stax.BatchNorm(),
-            stax.Relu6,
+            RELU6,
             stax.AvgPool((7, 7), strides=(1, 1), padding="VALID"),
             stax.Flatten,
             stax.Dense(num_classes),
