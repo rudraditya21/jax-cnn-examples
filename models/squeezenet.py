@@ -5,6 +5,18 @@ from jax.example_libraries import stax
 from .registry import ModuleRegistry
 
 
+def _global_avg_pool():
+    """
+    Shape-dependent global average pooling to avoid spatial mismatches across input sizes.
+    """
+
+    def layer(input_shape):
+        _, h, w, _ = input_shape
+        return stax.AvgPool((h, w), strides=(1, 1), padding="VALID")
+
+    return stax.shape_dependent(layer)
+
+
 def _fire(squeeze_ch: int, expand1x1: int, expand3x3: int):
     """
     Fire module: squeeze 1x1 conv followed by parallel 1x1 and 3x3 expand layers.
@@ -62,7 +74,7 @@ def squeezenet_1_0(num_classes: int = 1000):
         _fire(64, 256, 256),
         stax.Conv(num_classes, (1, 1), padding="SAME"),
         stax.Relu,
-        stax.AvgPool((13, 13), strides=(1, 1), padding="VALID"),
+        _global_avg_pool(),
         stax.Flatten,
     )
 
@@ -94,6 +106,6 @@ def squeezenet_1_1(num_classes: int = 1000):
         _fire(64, 256, 256),
         stax.Conv(num_classes, (1, 1), padding="SAME"),
         stax.Relu,
-        stax.AvgPool((13, 13), strides=(1, 1), padding="VALID"),
+        _global_avg_pool(),
         stax.Flatten,
     )

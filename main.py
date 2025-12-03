@@ -2,6 +2,7 @@ import argparse
 import os
 from collections.abc import Iterable
 
+import torch
 from rich.console import Console
 from rich.table import Table
 
@@ -10,7 +11,8 @@ from models.registry import ModuleRegistry
 
 
 def _console() -> Console:
-    return Console()
+    # Disable syntax highlighting so model names with dots (e.g., squeezenet1.1) render plainly.
+    return Console(highlight=False)
 
 
 def _print_table(title: str, rows: Iterable[tuple[str, str]]) -> None:
@@ -104,6 +106,7 @@ def train_model(
     epochs: int,
     learning_rate: float,
     max_steps: int | None,
+    resize_to: tuple[int, int] | None,
     device: str,
     seed: int,
 ) -> None:
@@ -135,6 +138,17 @@ def train_model(
     sample_np = sample_x.numpy()
     if sample_np.ndim != 4:
         raise ValueError(f"Expected 4D input (NCHW), got shape {sample_np.shape}")
+    if resize_to is not None:
+        import torch.nn.functional as F
+
+        sample_tensor = torch.from_numpy(sample_np)
+        sample_tensor = F.interpolate(
+            sample_tensor,
+            size=resize_to,
+            mode="bilinear",
+            align_corners=False,
+        )
+        sample_np = sample_tensor.numpy()
     sample_np = np.transpose(sample_np, (0, 2, 3, 1))
     input_shape = sample_np.shape
 
@@ -146,6 +160,18 @@ def train_model(
     def _to_array(batch):
         imgs, labels = batch
         x = imgs.numpy()
+        if resize_to is not None:
+            import torch.nn.functional as F
+
+            # Upsample NCHW to desired spatial size for models expecting larger inputs.
+            x_tensor = torch.from_numpy(x)
+            x_tensor = F.interpolate(
+                x_tensor,
+                size=resize_to,
+                mode="bilinear",
+                align_corners=False,
+            )
+            x = x_tensor.numpy()
         x = np.transpose(x, (0, 2, 3, 1))  # NCHW -> NHWC
         y = labels.numpy().astype(np.int32)
         return x, y
@@ -192,7 +218,8 @@ def train_model(
         # Quick eval on a single batch for speed.
         eval_batch = next(iter(eval_loader))
         x_np, y_np = _to_array(eval_batch)
-        logits = apply_fun(params, x_np, rng=None)
+        rng, eval_rng = jax.random.split(rng)
+        logits = apply_fun(params, x_np, rng=eval_rng)
         preds = jnp.argmax(logits, axis=-1)
         eval_acc = float(jnp.mean(preds == jnp.asarray(y_np)) * 100.0)
 
@@ -335,6 +362,14 @@ def build_arg_parser() -> argparse.ArgumentParser:
         help="Limit training steps per epoch (use None for full pass)",
     )
     train_parser.add_argument(
+        "--image-size",
+        type=int,
+        nargs=2,
+        metavar=("H", "W"),
+        default=None,
+        help="Optional spatial resize (e.g., 224 224 for ImageNet-style models)",
+    )
+    train_parser.add_argument(
         "--device",
         choices=("auto", "cpu", "gpu", "tpu"),
         default="auto",
@@ -389,6 +424,7 @@ def main() -> None:
             epochs=args.epochs,
             learning_rate=args.learning_rate,
             max_steps=max_steps,
+            resize_to=tuple(args.image_size) if args.image_size else None,
             device=args.device,
             seed=args.seed,
         )

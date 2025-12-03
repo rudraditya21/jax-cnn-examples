@@ -2,26 +2,42 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
+import jax
+import jax.numpy as jnp
 from jax.example_libraries import stax
+from jax.nn.initializers import glorot_uniform
 
 from .registry import ModuleRegistry
 
 
 def _depthwise_conv7x7():
     """
-    Depthwise 7x7 convolution that adapts to input channel count.
+    Depthwise 7x7 convolution implemented via lax to support older stax versions.
     """
 
-    def block(input_shape):
-        _, _, _, in_channels = input_shape
-        return stax.Conv(
-            in_channels,
-            (7, 7),
-            padding="SAME",
-            feature_group_count=in_channels,
-        )
+    def init_fun(rng, input_shape):
+        if len(input_shape) != 4:
+            raise ValueError(f"Expected NHWC input, got shape {input_shape}")
+        _, h, w, in_channels = input_shape
+        k_rng, _ = jax.random.split(rng)
+        # Shape (H, W, in_channels/groups=1, out_channels=in_channels) for depthwise conv.
+        W = glorot_uniform()(k_rng, (7, 7, 1, in_channels))
+        b = jnp.zeros((in_channels,), dtype=W.dtype)
+        return (input_shape[0], h, w, in_channels), (W, b)
 
-    return stax.shape_dependent(block)
+    def apply_fun(params, inputs, **kwargs):
+        W, b = params
+        y = jax.lax.conv_general_dilated(
+            inputs,
+            W,
+            window_strides=(1, 1),
+            padding="SAME",
+            dimension_numbers=("NHWC", "HWIO", "NHWC"),
+            feature_group_count=inputs.shape[-1],
+        )
+        return y + b
+
+    return init_fun, apply_fun
 
 
 def _convnext_block(dim: int, expansion: int = 4):
