@@ -1,9 +1,13 @@
 from .alexnet import *  # noqa: F401,F403
+from .convnext import *  # noqa: F401,F403
 from .densenet import *  # noqa: F401,F403
 from .efficientnet import *  # noqa: F401,F403
 from .googlenet import *  # noqa: F401,F403
 from .lenet import *  # noqa: F401,F403
 from .mobilenet import *  # noqa: F401,F403
+from .nfnet import *  # noqa: F401,F403
+from .regnet import *  # noqa: F401,F403
+from .repvgg import *  # noqa: F401,F403
 from .resnet import *  # noqa: F401,F403
 from .resnext import *  # noqa: F401,F403
 from .shufflenet import *  # noqa: F401,F403
