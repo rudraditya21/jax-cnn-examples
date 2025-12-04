@@ -11,7 +11,6 @@ from models.registry import ModuleRegistry
 
 
 def _console() -> Console:
-    # Disable syntax highlighting so model names with dots (e.g., squeezenet1.1) render plainly.
     return Console(highlight=False)
 
 

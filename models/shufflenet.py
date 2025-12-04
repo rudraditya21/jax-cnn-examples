@@ -33,7 +33,8 @@ def _depthwise_conv(
             raise ValueError("DepthwiseConv expects NHWC input.")
         _, h, w, c = input_shape
         k_h, k_w = kernel_size
-        w_shape = (k_h, k_w, c, 1)
+        # Depthwise: one input channel per group, output channels equal to input channels.
+        w_shape = (k_h, k_w, 1, c)
         k_rng, _ = jax.random.split(rng)
         W = glorot_uniform()(k_rng, w_shape)
         b = jnp.zeros((c,), dtype=W.dtype)
@@ -72,18 +73,23 @@ def _channel_shuffle(groups: int):
         groups: Number of channel groups.
 
     Returns:
-        A stax Lambda layer performing channel shuffle.
+        A `(init_fn, apply_fn)` pair performing channel shuffle.
     """
 
-    def fn(x):
-        n, h, w, c = x.shape
-        if c % groups != 0:
-            raise ValueError("Channels must be divisible by groups for shuffle.")
-        x = x.reshape(n, h, w, groups, c // groups)
+    def init_fun(rng, input_shape):
+        if len(input_shape) != 4:
+            raise ValueError("Channel shuffle expects NHWC input.")
+        return input_shape, ()
+
+    def apply_fun(params, inputs, **kwargs):
+        n, h, w, c = inputs.shape
+        if c % groups != 0 or groups <= 1:
+            return inputs
+        x = inputs.reshape(n, h, w, groups, c // groups)
         x = jnp.transpose(x, (0, 1, 2, 4, 3))
         return x.reshape(n, h, w, c)
 
-    return stax.Lambda(fn)
+    return init_fun, apply_fun
 
 
 def _shuffle_unit(out_channels: int, stride: int, groups: int):
@@ -103,6 +109,8 @@ def _shuffle_unit(out_channels: int, stride: int, groups: int):
         _, _, _, in_channels = input_shape
         mid_channels = out_channels // 4
 
+        proj_channels = max(1, out_channels - in_channels) if stride != 1 else out_channels
+
         branch_main = stax.serial(
             stax.Conv(mid_channels, (1, 1), padding="SAME"),
             stax.BatchNorm(),
@@ -110,9 +118,7 @@ def _shuffle_unit(out_channels: int, stride: int, groups: int):
             _channel_shuffle(groups),
             _depthwise_conv(stride=(stride, stride)),
             stax.BatchNorm(),
-            stax.Conv(
-                out_channels if stride == 1 else out_channels - in_channels, (1, 1), padding="SAME"
-            ),
+            stax.Conv(proj_channels, (1, 1), padding="SAME"),
             stax.BatchNorm(),
             stax.Relu,
         )
