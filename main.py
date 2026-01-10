@@ -365,8 +365,8 @@ def build_arg_parser() -> argparse.ArgumentParser:
         type=int,
         nargs=2,
         metavar=("H", "W"),
-        default=None,
-        help="Optional spatial resize (e.g., 224 224 for ImageNet-style models)",
+        default=(224, 224),
+        help="Spatial resize (default: 224 224 for ImageNet-style models)",
     )
     train_parser.add_argument(
         "--device",

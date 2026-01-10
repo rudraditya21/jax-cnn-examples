@@ -10,12 +10,6 @@ List models and datasets:
 python3 main.py list --section all
 ```
 
-Run a dummy forward pass:
-
-```bash
-python3 main.py check-model --model resnet18 --image-size 224 224
-```
-
 Run a short training sanity check:
 
 ```bash
