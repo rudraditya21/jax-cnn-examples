@@ -1,5 +1,6 @@
 import argparse
 import os
+import time
 from collections.abc import Iterable
 
 import torch
@@ -21,6 +22,15 @@ def _print_table(title: str, rows: Iterable[tuple[str, str]]) -> None:
     for key, value in rows:
         table.add_row(key, value)
     _console().print(table)
+
+
+def _parse_bool(value: str) -> bool:
+    normalized = value.strip().lower()
+    if normalized in ("true", "1", "yes", "y", "t"):
+        return True
+    if normalized in ("false", "0", "no", "n", "f"):
+        return False
+    raise argparse.ArgumentTypeError("Expected a boolean value (true/false).")
 
 
 def list_items(section: str) -> None:
@@ -108,6 +118,8 @@ def train_model(
     resize_to: tuple[int, int] | None,
     device: str,
     seed: int,
+    show_table: bool,
+    show_graph: bool,
 ) -> None:
     """
     Minimal JAX training loop to sanity-check model/dataset wiring.
@@ -126,6 +138,7 @@ def train_model(
         num_workers=num_workers,
         augment=augment,
     )
+    device_used = jax.devices()[0].platform
 
     num_classes = num_classes_override or num_classes_from_ds
     init_fun, apply_fun = ModuleRegistry.get(model_name)(num_classes=num_classes)
@@ -196,6 +209,9 @@ def train_model(
     def sgd_update(p, g):
         return jax.tree_util.tree_map(lambda param, grad: param - learning_rate * grad, p, g)
 
+    history: list[tuple[int, float, float, float]] = []
+    start_time = time.perf_counter()
+
     for epoch in range(epochs):
         train_loss = 0.0
         train_acc = 0.0
@@ -226,6 +242,72 @@ def train_model(
             f"[magenta]Epoch {epoch+1}/{epochs}[/magenta] "
             f"train_loss={train_loss:.4f} train_acc={train_acc:.2f}% eval_acc~{eval_acc:.2f}%"
         )
+        history.append((epoch + 1, train_loss, train_acc, eval_acc))
+
+    elapsed = time.perf_counter() - start_time
+
+    if show_table:
+        table = Table(title="Training Metrics")
+        table.add_column("Epoch", justify="right", style="cyan")
+        table.add_column("Train Loss", justify="right")
+        table.add_column("Train Acc (%)", justify="right")
+        table.add_column("Eval Acc (%)", justify="right")
+        for epoch, train_loss, train_acc, eval_acc in history:
+            table.add_row(
+                str(epoch),
+                f"{train_loss:.4f}",
+                f"{train_acc:.2f}",
+                f"{eval_acc:.2f}",
+            )
+        _console().print(table)
+
+    if show_graph:
+        try:
+            import matplotlib.pyplot as plt
+        except ImportError:
+            _console().print(
+                "[yellow]Warning[/yellow]: matplotlib is not installed; cannot show graph."
+            )
+            return
+
+        epochs_axis = [entry[0] for entry in history]
+        train_losses = [entry[1] for entry in history]
+        train_accs = [entry[2] for entry in history]
+        eval_accs = [entry[3] for entry in history]
+
+        fig, (ax_loss, ax_acc) = plt.subplots(1, 2, figsize=(10, 4))
+        ax_loss.plot(epochs_axis, train_losses, marker="o", label="train_loss")
+        ax_loss.set_title("Loss")
+        ax_loss.set_xlabel("Epoch")
+        ax_loss.set_ylabel("Loss")
+        ax_loss.grid(True, alpha=0.2)
+
+        ax_acc.plot(epochs_axis, train_accs, marker="o", label="train_acc")
+        ax_acc.plot(epochs_axis, eval_accs, marker="o", label="eval_acc")
+        ax_acc.set_title("Accuracy")
+        ax_acc.set_xlabel("Epoch")
+        ax_acc.set_ylabel("Accuracy (%)")
+        ax_acc.grid(True, alpha=0.2)
+        ax_acc.legend()
+
+        fig.tight_layout()
+        plt.show()
+
+    _print_table(
+        "Training Config",
+        [
+            ("dataset", dataset),
+            ("model", model_name),
+            ("image-size", f"{resize_to[0]}x{resize_to[1]}" if resize_to else "native"),
+            ("batch-size", str(batch_size)),
+            ("epochs", str(epochs)),
+            ("max-steps/epoch", str(max_steps) if max_steps is not None else "full"),
+            ("device", device_used),
+            ("augment", "on" if augment else "off"),
+            ("num-classes", str(num_classes)),
+            ("elapsed", f"{elapsed:.2f}s"),
+        ],
+    )
 
 
 def build_arg_parser() -> argparse.ArgumentParser:
@@ -369,6 +451,22 @@ def build_arg_parser() -> argparse.ArgumentParser:
         help="Spatial resize (default: 224 224 for ImageNet-style models)",
     )
     train_parser.add_argument(
+        "--table",
+        type=_parse_bool,
+        nargs="?",
+        const="true",
+        default=False,
+        help="Show epoch metrics in a table (true/false)",
+    )
+    train_parser.add_argument(
+        "--graph",
+        type=_parse_bool,
+        nargs="?",
+        const="true",
+        default=False,
+        help="Plot loss/accuracy graphs (true/false)",
+    )
+    train_parser.add_argument(
         "--device",
         choices=("auto", "cpu", "gpu", "tpu"),
         default="auto",
@@ -426,6 +524,8 @@ def main() -> None:
             resize_to=tuple(args.image_size) if args.image_size else None,
             device=args.device,
             seed=args.seed,
+            show_table=args.table,
+            show_graph=args.graph,
         )
 
 
