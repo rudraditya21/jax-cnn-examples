@@ -120,6 +120,7 @@ def train_model(
     seed: int,
     show_table: bool,
     show_graph: bool,
+    graph_out: str | None,
 ) -> None:
     """
     Minimal JAX training loop to sanity-check model/dataset wiring.
@@ -291,7 +292,11 @@ def train_model(
         ax_acc.legend()
 
         fig.tight_layout()
+        if graph_out:
+            fig.savefig(graph_out, dpi=150)
+            _console().print(f"[cyan]Saved graph[/cyan]: {graph_out}")
         plt.show()
+        plt.close(fig)
 
     _print_table(
         "Training Config",
@@ -467,6 +472,12 @@ def build_arg_parser() -> argparse.ArgumentParser:
         help="Plot loss/accuracy graphs (true/false)",
     )
     train_parser.add_argument(
+        "--graph-out",
+        type=str,
+        default="training_metrics.png",
+        help="Path to save the graph when --graph is true",
+    )
+    train_parser.add_argument(
         "--device",
         choices=("auto", "cpu", "gpu", "tpu"),
         default="auto",
@@ -526,6 +537,7 @@ def main() -> None:
             seed=args.seed,
             show_table=args.table,
             show_graph=args.graph,
+            graph_out=args.graph_out if args.graph else None,
         )
 
 
