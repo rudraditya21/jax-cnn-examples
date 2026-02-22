@@ -1,4 +1,6 @@
 from . import (
+    caltech101,
+    celeba,
     cifar10,
     cifar100,
     country211,
@@ -7,16 +9,22 @@ from . import (
     fashion_mnist,
     fer2013,
     gtsrb,
+    imagefolder,
+    imagenet,
     kmnist,
     mnist,
     pcam,
     qmnist,
+    stl10,
     sun397,
+    svhn,
 )
 from .registry import DatasetRegistry
 
 __all__ = [
     "DatasetRegistry",
+    "caltech101",
+    "celeba",
     "cifar10",
     "cifar100",
     "country211",
@@ -25,9 +33,13 @@ __all__ = [
     "fashion_mnist",
     "fer2013",
     "gtsrb",
+    "imagefolder",
+    "imagenet",
     "kmnist",
     "mnist",
     "pcam",
     "qmnist",
+    "stl10",
+    "svhn",
     "sun397",
 ]
