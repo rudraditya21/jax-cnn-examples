@@ -40,10 +40,12 @@ python3 main.py train --dataset cifar10 --model resnet18 --epochs 1 --max-steps 
 
 | Dataset | Dataset | Dataset |
 | --- | --- | --- |
-| caltech101 | celeba | cifar10 |
-| cifar100 | country211 | emnist |
-| eurosat | fashion_mnist | fer2013 |
-| gtsrb | imagefolder | imagenet |
-| kmnist | mnist | pcam |
-| qmnist | stl10 | sun397 |
-| svhn |  |  |
+| caltech101 | caltech256 | celeba |
+| cifar10 | cifar100 | country211 |
+| dtd | emnist | eurosat |
+| fashion_mnist | fer2013 | flowers102 |
+| food101 | gtsrb | imagefolder |
+| imagenet | inaturalist | kmnist |
+| mnist | oxfordiiitpet | pcam |
+| places365 | qmnist | stl10 |
+| sun397 | svhn |  |
